@@ -2,71 +2,70 @@
 import argparse
 import os
 import sys
-import yt_dlp
 
 def download_vimeo_video(embed_url: str, referer: str, output_dir: str, cookies: str | None,
-                         verbose: bool, info_only: bool):
+                         verbose: bool, info_only: bool) -> int:
+    try:
+        import yt_dlp
+    except ImportError:
+        print("Error: yt-dlp is not installed. Install it with: python3 -m pip install yt-dlp")
+        return 1
+
     os.makedirs(output_dir, exist_ok=True)
 
     ydl_opts = {
-        # Best video+audio, fallback to best single file
         'format': 'bv*+ba/best',
-        # Save into output_dir with title
         'outtmpl': os.path.join(output_dir, '%(title)s.%(ext)s'),
-        # Vimeo often splits audio/video; merge to mp4 (requires ffmpeg)
         'merge_output_format': 'mp4',
-        # Helpful for embedded/private-ish pages
         'http_headers': {
             'Referer': referer
         },
-        # Less noisy by default
         'quiet': not verbose,
         'no_warnings': not verbose,
     }
 
-    # Optional cookies file (exported from your browser)
-    # Format: Netscape cookies.txt (common for yt-dlp)
     if cookies:
         ydl_opts['cookiefile'] = cookies
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
-            print(f"\n➡️  URL: {embed_url}")
-            print(f"➡️  Referer: {referer}")
-            print(f"➡️  Output: {output_dir}")
+            print(f"URL: {embed_url}")
+            print(f"Referer: {referer}")
+            print(f"Output: {output_dir}")
             if cookies:
-                print(f"➡️  Cookies: {cookies}")
+                print(f"Cookies: {cookies}")
             print()
 
             if info_only:
                 info = ydl.extract_info(embed_url, download=False)
                 title = info.get("title")
                 duration = info.get("duration")
-                print("✅ Info fetched")
+                print("Info fetched")
                 print(f"Title: {title}")
                 if duration:
                     print(f"Duration: {duration} sec")
-                return
+                return 0
 
             ydl.download([embed_url])
-            print("\n✅ Download complete")
+            print("\nDownload complete")
+            return 0
 
-        except Exception as e:
-            print(f"\n❌ Error: {e}")
-            sys.exit(2)
+        except Exception as exc:
+            print(f"\nError: {exc}")
+            return 2
 
-def main():
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Download Vimeo video (embed URL) with a required Referer header."
+        description="Download a Vimeo video with a required Referer header."
     )
     parser.add_argument(
         "url",
         nargs="?",
-        help="Vimeo URL (embed/player preferred), e.g. https://player.vimeo.com/video/123456789"
+        help="Vimeo URL, for example https://player.vimeo.com/video/123456789"
     )
     parser.add_argument(
         "--referer",
-        help="The page where the Vimeo player is embedded (required for many sites)."
+        help="The page where the Vimeo player is embedded."
     )
     parser.add_argument(
         "-o", "--output-dir",
@@ -75,7 +74,7 @@ def main():
     )
     parser.add_argument(
         "--cookies",
-        help="Path to cookies.txt (Netscape format) if login is required."
+        help="Path to cookies.txt in Netscape format if login is required."
     )
     parser.add_argument(
         "-v", "--verbose",
@@ -85,22 +84,24 @@ def main():
     parser.add_argument(
         "--info",
         action="store_true",
-        help="Only fetch metadata (no download)."
+        help="Only fetch metadata without downloading the video."
     )
+    return parser
 
+def main() -> int:
+    parser = build_parser()
     args = parser.parse_args()
 
-    # Interactive fallback if URL/referer not provided
     url = args.url or input("Enter Vimeo URL (player.vimeo.com preferred): ").strip()
     referer = args.referer or input("Enter Referer (page where video is embedded): ").strip()
 
     if not url or not referer:
-        print("❌ URL and Referer are required.")
-        print("Example:")
-        print("  python3 vimeo_downloader.py https://player.vimeo.com/video/123 --referer https://example.com/page")
-        sys.exit(1)
+        parser.error("URL and Referer are required.")
 
-    download_vimeo_video(
+    if args.cookies and not os.path.isfile(args.cookies):
+        parser.error(f"Cookies file not found: {args.cookies}")
+
+    return download_vimeo_video(
         embed_url=url,
         referer=referer,
         output_dir=args.output_dir,
@@ -110,4 +111,4 @@ def main():
     )
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
