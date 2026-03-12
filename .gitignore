@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+
+# Python cache and virtual envs
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+env/
+
+# Local env/config
+.env
+.env.*
+
+# Commit analyzer generated outputs
+cv-analysis-output/
+cv-analysis/
+analyze_vlad_commits.py
+extract_repos.sh
+
+# Extracted repositories (local data)
+extracted-repos/
+extracted_repos/
+extracted_repos_list.txt
+
+# Generic temporary/log files
+*.log
+tmp/
+.cache/
